@@ -15,7 +15,7 @@ from sqlglot.helper import seq_get
 
 def _into_temp_table(e: exp.Expression) -> exp.Expression:
     """Preprocessor translate:
-    INSERT INTO #temptable into CREATE TEMPORARY VIEW statement for spark sql
+    SELECT INTO #temptable -> CREATE OR REPLACE TEMPORARY VIEW statement for spark sql
     """
     into = e.find(exp.Into)
     if into:
