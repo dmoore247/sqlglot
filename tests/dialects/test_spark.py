@@ -6,7 +6,11 @@ from tests.dialects.test_dialect import Validator
 class TestSpark(Validator):
     dialect = "spark"
 
-    def test_into_temp_table(self):
+    def test_into(self):
+        self.validate_all(
+            "CREATE OR REPLACE TABLE MyTable AS SELECT Column1, Column2 FROM Source_Table",
+            read={"tsql": "select Column1, Column2 INTO MyTable FROM Source_Table"},
+        )
         self.validate_all(
             "CREATE OR REPLACE TEMPORARY VIEW MyTempTable AS SELECT Column1, Column2 FROM Source_Table",
             read={"tsql": "SELECT Column1, Column2 INTO #MyTempTable FROM Source_Table"},

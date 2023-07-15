@@ -13,24 +13,26 @@ from sqlglot.dialects.hive import Hive
 from sqlglot.helper import seq_get
 
 
-def _into_temp_table(e: exp.Expression) -> exp.Expression:
-    """Preprocessor translate:
-    SELECT INTO #temptable -> CREATE OR REPLACE TEMPORARY VIEW statement for spark sql
+def _into_ctas(e: exp.Expression) -> exp.Expression:
+    """
+    When encountering an SELECT...INTO convert to CTAS
     """
     into = e.find(exp.Into)
     if into:
         table = into.find(exp.Table)
         if table:
             name = table.name
-            if name.startswith("#"):
-                select = e.find(exp.Select)
-                if select and select.args["into"]:
-                    del select.args["into"]
+            select = e.find(exp.Select)
+            if select and select.args["into"]:
+                del select.args["into"]
+                if name.startswith("#"):  # for spark
                     r = select.ctas(table=name[1:])
-                    r.args["temporary"] = True
                     r.args["replace"] = True
+                    r.args["temporary"] = True
                     r.args["kind"] = "TEMPORARY VIEW"
-
+                else:
+                    r = select.ctas(table=name)
+                    r.args["replace"] = True
                 return r
     return e
 
@@ -223,7 +225,7 @@ class Spark2(Hive):
             exp.StrToTime: lambda self, e: f"TO_TIMESTAMP({self.sql(e, 'this')}, {self.format_time(e)})",
             exp.Select: transforms.preprocess(
                 [
-                    _into_temp_table,
+                    _into_ctas,
                     transforms.eliminate_distinct_on,
                     transforms.unnest_to_explode,
                     transforms.eliminate_qualify,
