@@ -1445,6 +1445,7 @@ class Generator:
 
     def update_sql(self, expression: exp.Update) -> str:
         this = self.sql(expression, "this")
+        this = this if this else " "
         set_sql = self.expressions(expression, flat=True)
         from_sql = self.sql(expression, "from")
         where_sql = self.sql(expression, "where")

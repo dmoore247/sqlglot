@@ -3,7 +3,7 @@ from __future__ import annotations
 import typing as t
 
 from sqlglot import expressions as exp
-from sqlglot.helper import find_new_name, name_sequence
+from sqlglot.helper import csv, find_new_name, name_sequence
 
 if t.TYPE_CHECKING:
     from sqlglot.generator import Generator
@@ -13,14 +13,66 @@ def update_from_to_merge_into(expression: exp.Expression) -> exp.Expression:
     """Transform UPDATE FROM to MERGE INTO"""
     from_expression = expression.find(exp.From)
     if isinstance(expression, exp.Update) and from_expression:
-        join = from_expression.find(exp.Join)
-        if join:
-            on = join.args.get("on")
-            table = join.this
+        joins = from_expression.find_all(exp.Join)
+        n_joins = len(list(joins))
+        if joins and n_joins == 1:
+            join = from_expression.find(exp.Join)
+            if join:
+                on = join.args.get("on")
+                table = join.this
             this = expression.this
             then = exp.Update(expressions=expression.expressions)
             when = exp.When(matched=True, then=then)
             expression = exp.Merge(this=this, using=table, on=on, expressions=[when])
+        elif joins and n_joins > 1:
+            eq = expression.find(exp.EQ)
+            target = exp.Table(
+                this=from_expression.this.this, alias=from_expression.this.args.get("alias")
+            )
+            set_cols = [eq.right for eq in exp.Set(this=expression.expressions).find_all(exp.EQ)]
+
+            eq_cols = [
+                eq.right for eq in expression.find_all(exp.EQ) if eq.left.table == target.alias
+            ]
+            select_cols = eq_cols + set_cols
+
+            table = expression.copy().find(exp.From).this
+            j1 = table.find(exp.Join).pop()
+            table.set("this", j1.this)
+            table.set("alias", None)
+            from_exp = exp.From(this=table)
+            where = expression.find(exp.Where)
+            select_kwargs = {
+                "expressions": select_cols,
+                "from": from_exp,
+                "where": where,
+            }
+            select = exp.Select(**select_kwargs)
+
+            using = exp.Subquery(this=select, alias="src")
+            this = expression.this
+            # add 'src' to the right hand table for the SET target.col = src.src_col
+            expressions = [
+                exp.EQ(
+                    this=exp.Column(this=_.left.this, table=target.args.get("alias")),
+                    expression=exp.Column(this=_.right.this, table="src"),
+                ).sql()
+                for _ in expression.expressions
+            ]
+            update = exp.Update(expressions=expressions)
+            when = exp.When(matched=True, then=update)
+
+            on = [eq for eq in expression.find_all(exp.EQ) if eq.left.table == target.alias]
+            on2 = []
+            for eq in on:
+                if eq:
+                    eq2 = eq.copy()
+                    eq2.right.set("table", "src")
+                    on2.append(eq2.sql())
+            on = [_.sql() for _ in on]
+            on = csv(*on2, sep="AND")
+
+            expression = exp.Merge(this=target, using=using, on=on, expressions=[when])
         else:
             table = from_expression.this
             expression = exp.Update(
