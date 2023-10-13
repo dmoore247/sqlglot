@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import typing as t
 
-from sqlglot import exp
+from sqlglot import exp, transforms
 from sqlglot.dialects.dialect import rename_func
 from sqlglot.dialects.spark2 import Spark2
 from sqlglot.helper import seq_get
@@ -76,6 +76,7 @@ class Spark(Spark2):
             exp.TimestampAdd: lambda self, e: self.func(
                 "DATEADD", e.args.get("unit") or "DAY", e.expression, e.this
             ),
+            exp.Update: transforms.preprocess([transforms.update_from_to_merge_into]),
         }
         TRANSFORMS.pop(exp.AnyValue)
         TRANSFORMS.pop(exp.DateDiff)
