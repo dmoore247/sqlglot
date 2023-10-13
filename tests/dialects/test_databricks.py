@@ -194,15 +194,15 @@ class TestDatabricks(Validator):
     def test_update_from_to_merge_into(self):
         # multiple-joins
         self.maxDiff = None
-        
+
         self.validate_all(
             pretty=False,
-            sql="""MERGE INTO tm AS rn USING (SELECT t1.uid, UPPER(t2.ident) FROM tbl1 AS t1 JOIN tbl3 AS t3 ON t2.idt = t3.idt JOIN tbl2 AS t2 ON t1.id_id = t2.id WHERE t3.short = 'NPI' AND t2.ident LIKE REPEAT('[0-9]', 10)) AS src ON rn.uid = src.uid WHEN MATCHED THEN UPDATE SET rn.NPI = src.ident""",
+            sql="""MERGE INTO tm AS rn USING (SELECT t1.uid, UPPER(t2.ident) FROM cat1.tbl1 AS t1 JOIN tbl3 AS t3 ON t2.idt = t3.idt JOIN tbl2 AS t2 ON t1.id_id = t2.id WHERE t3.short = 'NPI' AND t2.ident LIKE REPEAT('[0-9]', 10)) AS src ON rn.uid = src.uid WHEN MATCHED THEN UPDATE SET rn.NPI = src.ident""",
             read={
-                "tsql": """UPDATE rn SET NPI = UPPER(t2.ident) FROM tm rn JOIN tbl1 t1 ON rn.uid = t1.uid JOIN tbl3 t3 ON t2.idt = t3.idt JOIN tbl2 t2 ON t1.id_id = t2.id WHERE t3.short = 'NPI' AND t2.ident like replicate('[0-9]', 10)""",
+                "tsql": """UPDATE rn SET NPI = UPPER(t2.ident) FROM tm rn JOIN cat1.tbl1 t1 ON rn.uid = t1.uid JOIN tbl3 t3 ON t2.idt = t3.idt JOIN tbl2 t2 ON t1.id_id = t2.id WHERE t3.short = 'NPI' AND t2.ident like replicate('[0-9]', 10)""",
             },
         )
-        
+
         self.validate_all(
             pretty=False,
             sql="""MERGE INTO tm AS rn USING (SELECT t1.uid, t2.ident FROM tbl1 AS t1 JOIN tbl2 AS t2 ON t1.id_id = t2.id JOIN tbl3 AS t3 ON t2.idt = t3.idt WHERE t3.short = 'NPI' AND t2.ident LIKE REPEAT('[0-9]', 10)) AS src ON rn.uid = src.uid WHEN MATCHED THEN UPDATE SET rn.NPI = src.ident""",
@@ -210,7 +210,7 @@ class TestDatabricks(Validator):
                 "tsql": """UPDATE rn SET NPI = t2.ident FROM tm rn JOIN tbl1 t1 ON rn.uid = t1.uid JOIN tbl2 t2 ON t1.id_id = t2.id JOIN tbl3 t3 ON t2.idt = t3.idt WHERE t3.short = 'NPI' AND t2.ident like replicate('[0-9]', 10)""",
             },
         )
-        
+
         self.validate_all(
             "MERGE INTO statezips USING zipcodes AS z ON LEFT(statezips.zip, 5) = z.zipcode WHEN MATCHED THEN UPDATE SET state = z.state",
             read={

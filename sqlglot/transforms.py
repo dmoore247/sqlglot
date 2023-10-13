@@ -31,7 +31,7 @@ def update_from_to_merge_into(expression: exp.Expression) -> exp.Expression:
             target = exp.Table(
                 this=from_expression.this.this, alias=from_expression.this.args.get("alias")
             )
-            
+
             # build the SELECT cols from the UPDATE SET and from the target join columns
             set_cols = [eq.right for eq in exp.Set(this=expression.expressions).find_all(exp.EQ)]
             eq_cols = [
@@ -54,7 +54,7 @@ def update_from_to_merge_into(expression: exp.Expression) -> exp.Expression:
             select = exp.Select(**select_kwargs)
 
             using = exp.Subquery(this=select, alias="src")
-            
+
             #
             # build the WHEN MATCHED THEN UPDATE clause
             #
