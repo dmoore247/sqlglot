@@ -191,24 +191,26 @@ class TestDatabricks(Validator):
             },
         )
 
-    def test_update_from(self):
+    def test_update_from_to_merge_into(self):
         # multiple-joins
         self.maxDiff = None
+        
         self.validate_all(
             pretty=False,
-            sql="""MERGE INTO t_merge AS ru_new USING (SELECT ui.user_id, i.identifier FROM mytbl1 AS ui JOIN mytbl2 AS i ON ui.identifier_id = i.id JOIN mytbl3 AS it ON i.identifier_type = it.identifier_type WHERE it.short_description = 'NPI' AND i.identifier LIKE REPEAT('[0-9]', 10)) AS src ON ru_new.user_id = src.user_id WHEN MATCHED THEN UPDATE SET ru_new.NPI = src.identifier""",
+            sql="""MERGE INTO tm AS rn USING (SELECT t1.uid, UPPER(t2.ident) FROM tbl1 AS t1 JOIN tbl3 AS t3 ON t2.idt = t3.idt JOIN tbl2 AS t2 ON t1.id_id = t2.id WHERE t3.short = 'NPI' AND t2.ident LIKE REPEAT('[0-9]', 10)) AS src ON rn.uid = src.uid WHEN MATCHED THEN UPDATE SET rn.NPI = src.ident""",
             read={
-                "tsql": """
-UPDATE ru_new 
-    SET NPI = i.identifier 
-FROM t_merge ru_new 
-JOIN mytbl1 ui ON ru_new.user_id = ui.user_id 
-JOIN mytbl2 i ON ui.identifier_id = i.id 
-JOIN mytbl3 it ON i.identifier_type = it.identifier_type 
-WHERE it.short_description = 'NPI' 
- AND i.identifier like replicate('[0-9]', 10)""",
+                "tsql": """UPDATE rn SET NPI = UPPER(t2.ident) FROM tm rn JOIN tbl1 t1 ON rn.uid = t1.uid JOIN tbl3 t3 ON t2.idt = t3.idt JOIN tbl2 t2 ON t1.id_id = t2.id WHERE t3.short = 'NPI' AND t2.ident like replicate('[0-9]', 10)""",
             },
         )
+        
+        self.validate_all(
+            pretty=False,
+            sql="""MERGE INTO tm AS rn USING (SELECT t1.uid, t2.ident FROM tbl1 AS t1 JOIN tbl2 AS t2 ON t1.id_id = t2.id JOIN tbl3 AS t3 ON t2.idt = t3.idt WHERE t3.short = 'NPI' AND t2.ident LIKE REPEAT('[0-9]', 10)) AS src ON rn.uid = src.uid WHEN MATCHED THEN UPDATE SET rn.NPI = src.ident""",
+            read={
+                "tsql": """UPDATE rn SET NPI = t2.ident FROM tm rn JOIN tbl1 t1 ON rn.uid = t1.uid JOIN tbl2 t2 ON t1.id_id = t2.id JOIN tbl3 t3 ON t2.idt = t3.idt WHERE t3.short = 'NPI' AND t2.ident like replicate('[0-9]', 10)""",
+            },
+        )
+        
         self.validate_all(
             "MERGE INTO statezips USING zipcodes AS z ON LEFT(statezips.zip, 5) = z.zipcode WHEN MATCHED THEN UPDATE SET state = z.state",
             read={
