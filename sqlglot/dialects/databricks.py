@@ -77,13 +77,15 @@ class Databricks(Spark):
         def merge_sql(self, expression: exp.Merge) -> str:
             # In Databricks SQL's merge into implementation, matched clause has to be the first clause
             expression = expression.copy()
+            matched_clause_index = -1
             for i in range(len(expression.expressions)):
                 exp = expression.expressions[i]
                 if exp.args['matched']:
                     matched_clause_index = i
-            matched_clause = expression.expressions[matched_clause_index]
-            expression.expressions[matched_clause_index] = expression.expressions[0]
-            expression.expressions[0] = matched_clause
+            if matched_clause_index >= 1:
+                matched_clause = expression.expressions[matched_clause_index]
+                expression.expressions[matched_clause_index] = expression.expressions[0]
+                expression.expressions[0] = matched_clause
 
             return super().merge_sql(expression)
 

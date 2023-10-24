@@ -221,3 +221,30 @@ class TestDatabricks(Validator):
                 "databricks": "MERGE INTO common.t_reporting_user AS T USING common.t_reporting_user_merge AS S ON (T.user_id = S.user_id) WHEN MATCHED THEN UPDATE SET T.username = S.username WHEN NOT MATCHED THEN INSERT (user_id, username) VALUES (s.user_id, s.username)"
             }
         )
+        self.validate_all(
+            """MERGE common..t_reporting_user WITH (HOLDLOCK) AS T
+            USING common..t_reporting_user_merge AS S
+            ON (T.user_id = S.user_id)
+            WHEN NOT MATCHED BY TARGET
+            THEN INSERT(user_id, username)
+            VALUES(s.user_id, s.username)
+            """,
+            write={
+                "databricks": "MERGE INTO common.t_reporting_user AS T USING common.t_reporting_user_merge AS S ON (T.user_id = S.user_id) WHEN NOT MATCHED THEN INSERT (user_id, username) VALUES (s.user_id, s.username)"
+            }
+        )
+        self.validate_all(
+            """MERGE common..t_reporting_user WITH (HOLDLOCK) AS T
+            USING common..t_reporting_user_merge AS S
+            ON (T.user_id = S.user_id)
+            WHEN MATCHED AND T.username IS NULL
+            THEN UPDATE SET
+            T.username = S.username
+            WHEN NOT MATCHED BY TARGET
+            THEN INSERT(user_id, username)
+            VALUES(s.user_id, s.username)
+            """,
+            write={
+                "databricks": "MERGE INTO common.t_reporting_user AS T USING common.t_reporting_user_merge AS S ON (T.user_id = S.user_id) WHEN MATCHED AND T.username IS NULL THEN UPDATE SET T.username = S.username WHEN NOT MATCHED THEN INSERT (user_id, username) VALUES (s.user_id, s.username)"
+            }
+        )
