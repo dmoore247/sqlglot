@@ -37,7 +37,7 @@ def update_from_to_merge_into(expression: exp.Expression) -> exp.Expression:
             eq_cols = [
                 eq.right for eq in expression.find_all(exp.EQ) if eq.left.table == target.alias
             ]
-            select_cols = eq_cols + set_cols
+            select_cols = list(dict.fromkeys(eq_cols + set_cols)) # remove duplicates
 
             # build the SELECT statement to go inside the USING clause
             table = expression.copy().find(exp.From).this
