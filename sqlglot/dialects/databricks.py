@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import List
+
 from sqlglot import exp, transforms
 from sqlglot.dialects.dialect import parse_date_delta, timestamptrunc_sql
 from sqlglot.dialects.spark import Spark
@@ -73,6 +75,52 @@ class Databricks(Spark):
             expression = expression.copy()
             expression.set("this", True)  # trigger ALWAYS in super class
             return super().generatedasidentitycolumnconstraint_sql(expression)
+
+        def merge_sql(self, expression: exp.Merge) -> str:
+            # In Databricks SQL's merge into implementation, the statement has to follow the order of: MATCHED clauses, NOT MATCHED [BY TARGET], NOT MATCHED [BY SOURCE]
+            # When there are multiple MATCHED clauses, only the last MATCHED clause can OMIT additional conditions
+            # When there are multiple NOT MATCHED [BY TARGET] clauses, only the last NOT MATCHED [BY TARGET] clause can OMIT additional conditions
+            # When there are multiple NOT MATCHED [BY SOURCE] clauses, only the last NOT MATCHED [BY SOURCE] clause can OMIT additional conditions
+
+            sorted_expression = expression.copy()
+            matched_clauses_with_conditions: List[int] = []
+            matched_clauses_no_conditions: List[int] = []
+            not_matched_clauses_by_target_with_conditions: List[int] = []
+            not_matched_clauses_by_target_no_conditions: List[int] = []
+            not_matched_clauses_by_source_with_conditions: List[int] = []
+            not_matched_clauses_by_source_no_conditions: List[int] = []
+            sorted_index = [
+                matched_clauses_with_conditions,
+                matched_clauses_no_conditions,
+                not_matched_clauses_by_target_with_conditions,
+                not_matched_clauses_by_target_no_conditions,
+                not_matched_clauses_by_source_with_conditions,
+                not_matched_clauses_by_source_no_conditions,
+            ]
+            for i in range(len(expression.expressions)):
+                exp = expression.expressions[i]
+                if exp.args["matched"]:
+                    if exp.args["condition"] is None:
+                        matched_clauses_no_conditions.append(i)
+                    else:
+                        matched_clauses_with_conditions.append(i)
+                elif exp.args["source"]:
+                    if exp.args["condition"] is None:
+                        not_matched_clauses_by_source_no_conditions.append(i)
+                    else:
+                        not_matched_clauses_by_source_with_conditions.append(i)
+                else:  # NOT MATCHED BY TARGET
+                    if exp.args["condition"] is None:
+                        not_matched_clauses_by_target_no_conditions.append(i)
+                    else:
+                        not_matched_clauses_by_target_with_conditions.append(i)
+            curse = 0
+            for index_group in sorted_index:
+                for index in index_group:
+                    sorted_expression.expressions[curse] = expression.expressions[index]
+                    curse += 1
+
+            return super().merge_sql(sorted_expression)
 
     class Tokenizer(Spark.Tokenizer):
         HEX_STRINGS = []
