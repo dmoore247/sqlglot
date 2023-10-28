@@ -204,7 +204,7 @@ class TestDatabricks(Validator):
             T.username = S.username""",
             write={
                 "databricks": "MERGE INTO common.t_reporting_user AS T USING common.t_reporting_user_merge AS S ON (T.user_id = S.user_id) WHEN MATCHED THEN UPDATE SET T.username = S.username WHEN NOT MATCHED THEN INSERT (user_id, username) VALUES (s.user_id, s.username)"
-            }
+            },
         )
         self.validate_all(
             """MERGE common..t_reporting_user WITH (HOLDLOCK) AS T
@@ -219,7 +219,7 @@ class TestDatabricks(Validator):
             """,
             write={
                 "databricks": "MERGE INTO common.t_reporting_user AS T USING common.t_reporting_user_merge AS S ON (T.user_id = S.user_id) WHEN MATCHED THEN UPDATE SET T.username = S.username WHEN NOT MATCHED THEN INSERT (user_id, username) VALUES (s.user_id, s.username)"
-            }
+            },
         )
         self.validate_all(
             """MERGE common..t_reporting_user WITH (HOLDLOCK) AS T
@@ -231,7 +231,7 @@ class TestDatabricks(Validator):
             """,
             write={
                 "databricks": "MERGE INTO common.t_reporting_user AS T USING common.t_reporting_user_merge AS S ON (T.user_id = S.user_id) WHEN NOT MATCHED THEN INSERT (user_id, username) VALUES (s.user_id, s.username)"
-            }
+            },
         )
         self.validate_all(
             """MERGE common..t_reporting_user WITH (HOLDLOCK) AS T
@@ -246,5 +246,109 @@ class TestDatabricks(Validator):
             """,
             write={
                 "databricks": "MERGE INTO common.t_reporting_user AS T USING common.t_reporting_user_merge AS S ON (T.user_id = S.user_id) WHEN MATCHED AND T.username IS NULL THEN UPDATE SET T.username = S.username WHEN NOT MATCHED THEN INSERT (user_id, username) VALUES (s.user_id, s.username)"
-            }
+            },
+        )
+        # more test cases on multiple matched clauses
+        self.validate_all(
+            """MERGE common..t_reporting_user WITH (HOLDLOCK) AS T
+            USING common..t_reporting_user_merge AS S
+            ON (T.user_id = S.user_id)
+            WHEN MATCHED
+            THEN UPDATE SET
+            T.username = S.username
+            WHEN MATCHED AND S.username = 'xyx'
+            THEN UPDATE SET
+            T.username = 'yxy'
+            WHEN NOT MATCHED BY TARGET
+            THEN INSERT(user_id, username)
+            VALUES(s.user_id, s.username)
+            """,
+            write={
+                "databricks": "MERGE INTO common.t_reporting_user AS T USING common.t_reporting_user_merge AS S ON (T.user_id = S.user_id) WHEN MATCHED AND S.username = 'xyx' THEN UPDATE SET T.username = 'yxy' WHEN MATCHED THEN UPDATE SET T.username = S.username WHEN NOT MATCHED THEN INSERT (user_id, username) VALUES (s.user_id, s.username)"
+            },
+        )
+        self.validate_all(
+            """MERGE common..t_reporting_user WITH (HOLDLOCK) AS T
+            USING common..t_reporting_user_merge AS S
+            ON (T.user_id = S.user_id)
+            WHEN MATCHED AND S.username = 'xyx'
+            THEN UPDATE SET
+            T.username = 'yxy'
+            WHEN MATCHED
+            THEN UPDATE SET
+            T.username = S.username
+            WHEN NOT MATCHED BY TARGET
+            THEN INSERT(user_id, username)
+            VALUES(s.user_id, s.username)
+            """,
+            write={
+                "databricks": "MERGE INTO common.t_reporting_user AS T USING common.t_reporting_user_merge AS S ON (T.user_id = S.user_id) WHEN MATCHED AND S.username = 'xyx' THEN UPDATE SET T.username = 'yxy' WHEN MATCHED THEN UPDATE SET T.username = S.username WHEN NOT MATCHED THEN INSERT (user_id, username) VALUES (s.user_id, s.username)"
+            },
+        )
+        self.validate_all(
+            """MERGE common..t_reporting_user WITH (HOLDLOCK) AS T
+            USING common..t_reporting_user_merge AS S
+            ON (T.user_id = S.user_id)
+            WHEN MATCHED
+            THEN UPDATE SET
+            T.username = S.username
+            WHEN NOT MATCHED BY TARGET
+            THEN INSERT(user_id, username)
+            VALUES(s.user_id, s.username)
+            WHEN MATCHED AND S.username = 'xyx'
+            THEN UPDATE SET
+            T.username = 'yxy'
+            """,
+            write={
+                "databricks": "MERGE INTO common.t_reporting_user AS T USING common.t_reporting_user_merge AS S ON (T.user_id = S.user_id) WHEN MATCHED AND S.username = 'xyx' THEN UPDATE SET T.username = 'yxy' WHEN MATCHED THEN UPDATE SET T.username = S.username WHEN NOT MATCHED THEN INSERT (user_id, username) VALUES (s.user_id, s.username)"
+            },
+        )
+        self.validate_all(
+            """MERGE common..t_reporting_user WITH (HOLDLOCK) AS T
+            USING common..t_reporting_user_merge AS S
+            ON (T.user_id = S.user_id)
+            WHEN MATCHED
+            THEN UPDATE SET
+            T.username = S.username
+            WHEN MATCHED AND S.username = 'xyx'
+            THEN UPDATE SET
+            T.username = 'yxy'
+            WHEN NOT MATCHED BY TARGET
+            THEN INSERT(user_id, username)
+            VALUES(s.user_id, s.username)
+            """,
+            write={
+                "databricks": "MERGE INTO common.t_reporting_user AS T USING common.t_reporting_user_merge AS S ON (T.user_id = S.user_id) WHEN MATCHED AND S.username = 'xyx' THEN UPDATE SET T.username = 'yxy' WHEN MATCHED THEN UPDATE SET T.username = S.username WHEN NOT MATCHED THEN INSERT (user_id, username) VALUES (s.user_id, s.username)"
+            },
+        )
+        self.validate_all(
+            """MERGE common..t_reporting_user WITH (HOLDLOCK) AS T
+            USING common..t_reporting_user_merge AS S
+            ON (T.user_id = S.user_id)
+
+            WHEN NOT MATCHED BY SOURCE
+            THEN DELETE
+
+            WHEN NOT MATCHED BY SOURCE AND S.username = 'xyx'
+            THEN DELETE
+
+            WHEN MATCHED
+            THEN UPDATE SET
+            T.username = S.username
+
+            WHEN MATCHED AND S.username = 'xyx'
+            THEN UPDATE SET
+            T.username = 'MATCHED'
+
+            WHEN NOT MATCHED AND T.username = 'xyx'
+            THEN INSERT(user_id, username)
+            VALUES(s.user_id, 'NOT MATCHED')
+
+            WHEN NOT MATCHED
+            THEN INSERT(user_id, username)
+            VALUES(s.user_id, s.username)
+            """,
+            write={
+                "databricks": "MERGE INTO common.t_reporting_user AS T USING common.t_reporting_user_merge AS S ON (T.user_id = S.user_id) WHEN MATCHED AND S.username = 'xyx' THEN UPDATE SET T.username = 'MATCHED' WHEN MATCHED THEN UPDATE SET T.username = S.username WHEN NOT MATCHED AND T.username = 'xyx' THEN INSERT (user_id, username) VALUES (s.user_id, 'NOT MATCHED') WHEN NOT MATCHED THEN INSERT (user_id, username) VALUES (s.user_id, s.username) WHEN NOT MATCHED BY SOURCE AND S.username = 'xyx' THEN DELETE WHEN NOT MATCHED BY SOURCE THEN DELETE"
+            },
         )
