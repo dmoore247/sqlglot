@@ -80,7 +80,7 @@ class Databricks(Spark):
             # In Databricks SQL's merge into implementation, the statement has to follow the order of: MATCHED clauses, NOT MATCHED [BY TARGET], NOT MATCHED [BY SOURCE]
             # When there are multiple MATCHED clauses, only the last MATCHED clause can OMIT additional conditions
             # When there are multiple NOT MATCHED [BY TARGET] clauses, only the last NOT MATCHED [BY TARGET] clause can OMIT additional conditions
-            # When there are multiple NOT MATCHED [BY SOURCE] clauses, only the last NOT MATCHED [BY TARGET] clause can OMIT additional conditions
+            # When there are multiple NOT MATCHED [BY SOURCE] clauses, only the last NOT MATCHED [BY SOURCE] clause can OMIT additional conditions
 
             sorted_expression = expression.copy()
             matched_clauses_with_conditions: List[int] = []
